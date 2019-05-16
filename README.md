@@ -2,6 +2,14 @@
 
 This is my hobby cluster! It's a project for me to experiment with tools like terraform, aws, ansbile and kubernetes. It's originally based off of a kubernetes-from-scratch approach, outlined in this [blog post](https://blog.inkubate.io/install-and-configure-a-multi-master-kubernetes-cluster-with-kubeadm/) but I will likely move on to the slightly more in depth version of this idea with [kubernetes the hard way](https://github.com/kelseyhightower/kubernetes-the-hard-way) soon. Ping me if you have any cool suggestions or ideas!
 
+## Dependencies
+
+- node
+- python3
+- terraform
+- docker-compose / docker
+- aws account access key and secret
+
 ## Setup
 
 ```
