@@ -80,7 +80,7 @@ save and exit
 
 ## Destroy
 
-pushd terraform && terraform destroy -auto-approve && popd
+pushd terraform && terraform destroy -var-file="secrets.tfvars" -auto-approve && popd
 
 ## TODOS
 
