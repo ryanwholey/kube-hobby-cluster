@@ -89,4 +89,5 @@ pushd terraform && terraform destroy -auto-approve && popd
 - Automate joining and patching cluster
 - Full script to bring up cluster (vs individual steps)
 - Move away from ansible directly and use the terraform ansible provider
+- Remove haproxy lb in favor of managed NLB
 
