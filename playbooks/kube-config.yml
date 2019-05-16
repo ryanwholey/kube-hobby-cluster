@@ -1,0 +1,7 @@
+- hosts: masters
+  become: yes
+  tasks:
+    - template:
+        src: ../templates/kube-config.j2
+        dest: ./kube-config.yaml
+

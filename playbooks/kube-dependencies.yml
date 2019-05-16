@@ -1,0 +1,66 @@
+- hosts: masters:workers
+  become: yes
+  tasks:
+    - name: Ensure group "docker" exists
+      group:
+        name: docker
+        state: present
+
+    - name: Add the user 'ubuntu' with a specific uid and a primary group of 'docker'
+      user:
+        name: ubuntu
+        group: docker
+
+    - name: Install docker
+      script: ../scripts/install-docker.sh
+
+    - name: install APT Transport HTTPS
+      apt:
+        name: apt-transport-https
+        state: present
+
+    - name: add Kubernetes apt-key
+      apt_key:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        state: present
+
+    - name: add Kubernetes' APT repository
+      apt_repository:
+        repo: deb http://apt.kubernetes.io/ kubernetes-xenial main
+        state: present
+        filename: 'kubernetes'
+        
+    - name: Run the equivalent of "apt-get update && apt-get upgrade"
+      apt:
+        update_cache: yes
+        upgrade: yes
+
+    - name: install kubelet
+      apt:
+        name: kubelet=1.14.0-00
+        state: present
+        update_cache: true
+
+    - name: install kubeadm
+      apt:
+        name: kubeadm=1.14.0-00
+        state: present
+
+    - name: Remove swapfile from /etc/fstab
+      mount:
+        name: swap
+        fstype: swap
+        state: absent
+
+    - name: Disable swap
+      command: swapoff -a
+
+- hosts: masters
+  become: yes
+  tasks:
+    - name: install kubectl
+      apt:
+        name: kubectl=1.14.0-00
+        state: present
+        force: yes
+

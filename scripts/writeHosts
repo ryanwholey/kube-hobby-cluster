@@ -1,0 +1,24 @@
+#!/usr/bin/env node
+
+const hostsToJson = require('./hostsToJson')
+
+function main() {
+  const config = hostsToJson()
+  let hostsFile = ``
+
+  Object.keys(config).forEach((key) => {
+    hostsFile += `[${key}]\n`
+    config[key].forEach((entry) => {
+      const line = `${entry.name} ansible_host=${entry.ansible_host} ansible_user=${entry.ansible_user}\n`
+      hostsFile += line
+    })
+    hostsFile += '\n'
+  })
+
+  hostsFile += `[all:vars]
+ansible_python_interpreter=/usr/bin/python3
+`
+  console.log(hostsFile)
+}
+
+main()

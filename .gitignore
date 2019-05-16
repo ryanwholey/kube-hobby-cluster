@@ -1,0 +1,8 @@
+/kube-certs/
+/terraform/*
+!terraform/main.tf
+/venv/
+/hosts
+pki.tar.gz
+.DS_Store
+**node_modules**

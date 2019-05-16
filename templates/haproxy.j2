@@ -1,0 +1,31 @@
+global
+    log 127.0.0.1 local0 notice
+    maxconn 2000
+    user haproxy
+    group haproxy
+
+defaults
+    log     global
+    mode    http
+    option  httplog
+    option  dontlognull
+    retries 3
+    option redispatch
+    timeout connect  5000
+    timeout client  10000
+    timeout server  10000
+
+frontend kube
+    bind 10.10.40.93:6443
+    option tcplog
+    mode tcp
+    default_backend kube-master-nodes
+
+backend kube-master-nodes
+    mode tcp
+    balance roundrobin
+    option tcp-check
+    server k8s-master-0 10.10.40.90:6443 check fall 3 rise 2
+    server k8s-master-1 10.10.40.91:6443 check fall 3 rise 2
+    server k8s-master-2 10.10.40.92:6443 check fall 3 rise 2
+

@@ -1,0 +1,22 @@
+#!/usr/bin/env node
+
+const hostsToJson = require('./hostsToJson')
+
+function main() {
+  const config = hostsToJson()
+
+  let sshConfig = ''
+  const sshFile = Object.keys(config).reduce((sshConfig, key) => {
+    return sshConfig + config[key].reduce((hostConfig, host) => {
+      return hostConfig + `Host ${host.name}
+    User ${host.ansible_user}
+    HostName ${host.ansible_host}
+    IdentityFile ~/.ssh/id_rsa\n\n`
+    }, '')
+  }, '')
+
+  console.log(sshFile)
+}
+
+main()
+

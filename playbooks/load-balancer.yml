@@ -1,0 +1,19 @@
+- hosts: loadbalancers
+  become: yes
+  tasks:
+    - name: Install haproxy
+      apt:
+        name: haproxy
+        state: present
+        update_cache: yes
+
+    - name: Copy haproxy.cfg
+      template:
+        src: ../templates/haproxy.j2
+        dest: /etc/haproxy/haproxy.cfg
+        mode: 0644
+
+    - name: Restart haproxy
+      shell: systemctl restart haproxy
+
+

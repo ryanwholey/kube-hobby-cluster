@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -euf
+
+dir=$(dirname "$0")
+
+rm -rf kube-certs
+docker build -f "$dir/../Dockerfile" . -t kube-env
+docker run -it -v $(pwd):/app -w /app --rm kube-env "$dir/_gencerts"
+

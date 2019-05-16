@@ -1,0 +1,71 @@
+#!/bin/bash
+
+mkdir -p kube-certs
+
+cat <<EOF > kube-certs/ca-csr.json
+{
+  "CN": "Kubernetes",
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+  {
+    "C": "IE",
+    "L": "Cork",
+    "O": "Kubernetes",
+    "OU": "CA",
+    "ST": "Cork Co."
+  }
+ ]
+}
+EOF
+
+cat <<EOF > kube-certs/ca-config.json
+{
+  "signing": {
+    "default": {
+      "expiry": "8760h"
+    },
+    "profiles": {
+      "kubernetes": {
+        "usages": ["signing", "key encipherment", "server auth", "client auth"],
+        "expiry": "8760h"
+      }
+    }
+  }
+}
+EOF
+
+cat <<EOF > kube-certs/kubernetes-csr.json
+{
+  "CN": "kubernetes",
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+  {
+    "C": "IE",
+    "L": "Cork",
+    "O": "Kubernetes",
+    "OU": "Kubernetes",
+    "ST": "Cork Co."
+  }
+ ]
+}
+EOF
+
+cfssl gencert -initca kube-certs/ca-csr.json | cfssljson -bare ca
+
+mv ca-key.pem  ca.csr  ca.pem kube-certs
+
+cfssl gencert \
+-ca=kube-certs/ca.pem \
+-ca-key=kube-certs/ca-key.pem \
+-config=kube-certs/ca-config.json \
+-hostname=10.10.40.90,10.10.40.91,10.10.40.92,10.10.40.93,127.0.0.1,kubernetes.default \
+-profile=kubernetes kube-certs/kubernetes-csr.json | \
+cfssljson -bare kubernetes
+
+mv kubernetes-key.pem kubernetes.csr kubernetes.pem kube-certs

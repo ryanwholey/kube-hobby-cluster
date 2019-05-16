@@ -1,0 +1,108 @@
+- hosts: masters:workers
+  become: yes
+  tasks:
+    - name: Create /etc/etcd
+      file:
+        path: /etc/etcd
+        mode: 0755
+        state: directory
+    - name: Create /var/lib/etcd
+      file:
+        path: /var/lib/etcd
+        mode: 0755
+        state: directory
+
+    - name: copy ca.pem
+      copy:
+        src: ../kube-certs/ca.pem
+        dest: /home/ubuntu/ca.pem
+        mode: 0644
+    - name: copy kubernetes.pem
+      copy:
+        src: ../kube-certs/kubernetes.pem
+        dest: /home/ubuntu/kubernetes.pem
+        mode: 0644
+    - name: copy kubernetes-key.pem
+      copy:
+        src: ../kube-certs/kubernetes-key.pem
+        dest: /home/ubuntu/kubernetes-key.pem
+        mode: 0600
+
+- hosts: loadbalancers
+  become: yes
+  tasks:
+    - name: copy ca-key.pem
+      copy:
+        src: ../kube-certs/ca-key.pem
+        dest: /home/ubuntu/ca-key.pem
+        mode: 0644
+    - name: copy ca.pem
+      copy:
+        src: ../kube-certs/ca.pem
+        dest: /home/ubuntu/ca.pem
+        mode: 0644
+    - name: copy kubernetes.pem
+      copy:
+        src: ../kube-certs/kubernetes.pem
+        dest: /home/ubuntu/kubernetes.pem
+        mode: 0644
+    - name: copy kubernetes-key.pem
+      copy:
+        src: ../kube-certs/kubernetes-key.pem
+        dest: /home/ubuntu/kubernetes-key.pem
+        mode: 0600
+
+- hosts: masters
+  become: yes
+  tasks:
+
+    - name: Create /etc/etcd
+      file:
+        path: /etc/etcd
+        mode: 0755
+        state: directory
+
+    - name: Create /var/lib/etcd
+      file:
+        path: /var/lib/etcd
+        mode: 0755
+        state: directory
+    - name: Create /tmp/etcd
+      file:
+        path: /tmp/etcd
+        mode: 0755
+        state: directory
+
+    - name: Move ca.pem
+      command: mv /home/ubuntu/ca.pem /etc/etcd
+      ignore_errors: yes
+
+    - name: Move kubernetes.pem cert
+      command: mv /home/ubuntu/kubernetes.pem /etc/etcd
+      ignore_errors: yes
+
+    - name: Move kubernetes-key.pem cert
+      command: mv /home/ubuntu/kubernetes-key.pem /etc/etcd
+      ignore_errors: yes
+
+    - name: Unarchive a file that needs to be downloaded (added in 2.0)
+      unarchive:
+        src: https://github.com/coreos/etcd/releases/download/v3.3.9/etcd-v3.3.9-linux-amd64.tar.gz
+        dest: /tmp/etcd
+        remote_src: yes
+
+    - name: move untarred etcd
+      shell: mv /tmp/etcd/etcd-v3.3.9-linux-amd64/etcd* /usr/local/bin/
+
+    - name: Copy etcd config to host
+      template:
+        src: ../templates/etcd.j2
+        dest: /etc/systemd/system/etcd.service
+
+    - name: start etcd
+      systemd:
+        name: etcd
+        daemon_reload: yes
+        state: started
+        enabled: yes
+
