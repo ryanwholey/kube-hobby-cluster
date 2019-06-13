@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-const hostsToJson = require('./hostsToJson')
+const getIps = require('./getIps')
 
 function main() {
-  const config = hostsToJson()
+  const config = getIps()
   let hostsFile = ``
 
   Object.keys(config).forEach((key) => {

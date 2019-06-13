@@ -173,6 +173,7 @@ resource "aws_security_group" "kube-worker-sg" {
 }
 
 resource "aws_instance" "load-balancer" {
+  count         = 1
   ami           = "ami-059ac57b261e8332d"
   instance_type = "t2.medium"
   subnet_id     = "${aws_subnet.kube-control-subnet.id}"
@@ -188,11 +189,11 @@ resource "aws_instance" "load-balancer" {
 }
 
 resource "aws_instance" "kube-master" {
-  count = 3
-  ami = "ami-059ac57b261e8332d"
+  count         = 3
+  ami           = "ami-059ac57b261e8332d"
   instance_type = "t2.medium"
   subnet_id     = "${aws_subnet.kube-control-subnet.id}"
-  private_ip = "10.10.40.9${count.index}"
+  private_ip    = "10.10.40.9${count.index}"
   key_name      = "ryan-mac-air"
   vpc_security_group_ids = [ "${aws_security_group.kube-worker-sg.id}" ]
 
@@ -204,11 +205,11 @@ resource "aws_instance" "kube-master" {
 }
 
 resource "aws_instance" "kube-worker" {
-  count = 3
-  ami = "ami-059ac57b261e8332d"
+  count         = 3
+  ami           = "ami-059ac57b261e8332d"
   instance_type = "t2.medium"
   subnet_id     = "${aws_subnet.kube-control-subnet.id}"
-  private_ip = "10.10.40.10${count.index}"
+  private_ip    = "10.10.40.10${count.index}"
   key_name      = "ryan-mac-air"
   vpc_security_group_ids = [ "${aws_security_group.kube-worker-sg.id}" ]
 
@@ -238,4 +239,16 @@ resource "aws_eip" "kube-worker-1-eip" {
   count = 3
 
   instance = "${element(aws_instance.kube-worker.*.id, count.index)}"
+}
+
+output "worker_instance_ips" {
+  value = ["${aws_instance.kube-worker.*.public_ip}"]
+}
+
+output "master_instance_ips" {
+  value = ["${aws_instance.kube-master.*.public_ip}"]
+}
+
+output "loadbalancer_instance_ips" {
+  value = ["${aws_instance.load-balancer.*.public_ip}"]
 }

@@ -1,39 +1,45 @@
 const execSync = require('child_process').execSync
 
-function main() {
-  const out = execSync(`AWS_PROFILE=ryan aws ec2 describe-instances | jq '.Reservations[] | .Instances[] | select(.State.Name == "running") | .Tags[0].Value, .PublicIpAddress '`
-  ).toString('utf8')
+const types = [
+    'loadbalancer',
+    'master',
+    'worker',
+]
 
-  return out.split('\n').reduce((map, _item, index, collection) => {
-    let item = _item.replace(/\"/g, '')
+function getIpsForType(type) {
+    return execSync(`cd terraform && terraform output ${type}_instance_ips`)
+        .toString('utf8')
+        .split('\n')
+        .filter(i => !!i)
+        .map((i) => i.replace(/\,/,''))
+}
 
-    if (!item || Number.isInteger(+item[0]))  {
-      return map
+function getName(type, index) {
+    if (type === 'loadbalancer') {
+        return `loadbalancer-${index}`
     } else {
-      let type
-      if (item.startsWith('kube-master')) {
-        type = 'masters'
-      } else if (item.startsWith('kube-worker')) {
-        type = 'workers'
-      } else if (item.startsWith('load-balancer')) {
-        type = 'loadbalancers'
-      }
-
-      map[type] = [
-        ...map[type],
-        {
-          ansible_user: 'ubuntu',
-          name: item,
-          ansible_host: collection[index + 1].replace(/\"/g,''),
-        }
-      ]
-      return map
+        return `kube-${type}-${index}`
     }
-  }, {
-    masters: [],
-    workers: [],
-    loadbalancers: [],
-  })
+}
+
+function addAnsibleProps(ipMap) {
+    return Object.keys(ipMap).reduce((map, type) => ({
+        ...map,
+        [`${type}s`]: ipMap[type].map((ip, index) => ({
+            ansible_user: 'ubuntu',
+            name: getName(type, index + 1),
+            ansible_host: ip,
+        }))
+    }), {})
+}
+
+function main() {
+    const ipMap = types.reduce((ips, type) => ({
+        ...ips,
+        [type]: getIpsForType(type),
+    }), {})
+
+    return addAnsibleProps(ipMap)
 }
 
 module.exports = main
