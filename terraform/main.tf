@@ -83,8 +83,8 @@ resource "aws_route_table_association" "kube-pod-route-assoc" {
   depends_on = [ "aws_subnet.kube-pods-subnet", "aws_route_table.kube-rt"]
 }
 
-resource "aws_security_group" "kube-master-sg" {
-  name        = "kube-master-sg"
+resource "aws_security_group" "kube-internal-security-group" {
+  name        = "kube-internal-security-group"
   description = "Allow traffic for control plane"
   vpc_id      = "${aws_vpc.kube-vpc.id}"
 
@@ -109,20 +109,6 @@ resource "aws_security_group" "kube-master-sg" {
     cidr_blocks     = ["0.0.0.0/0"]
   }
 
-  ingress {
-    from_port       = 53
-    to_port         = 53
-    protocol        = "tcp"
-    cidr_blocks     = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port       = 1025
-    to_port         = 65535
-    protocol        = "tcp"
-    cidr_blocks     = ["0.0.0.0/0"]
-  }
-
   egress {
     from_port       = 0
     to_port         = 0
@@ -131,9 +117,9 @@ resource "aws_security_group" "kube-master-sg" {
   }
 }
 
-resource "aws_security_group" "kube-worker-sg" {
-  name        = "kube-worker-sg"
-  description = "Allow traffic for worker"
+resource "aws_security_group" "kube-external-security-group" {
+  name        = "kube-external-security-group"
+  description = "Allow traffic for workers"
   vpc_id      = "${aws_vpc.kube-vpc.id}"
 
   ingress {

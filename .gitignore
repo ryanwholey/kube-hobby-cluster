@@ -1,8 +1,11 @@
-/kube-certs/
+kube-certs/
 /terraform/*
 !terraform/main.tf
+/terraform2/*
+!terraform2/main.tf
 /venv/
 /hosts
 pki.tar.gz
 .DS_Store
 **node_modules**
+cert-files/
