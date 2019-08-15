@@ -87,7 +87,7 @@ resource "aws_security_group" "kube-internal-security-group" {
     from_port       = 22
     to_port         = 22
     protocol        = "tcp"
-    cidr_blocks     = ["10.10.10.0/24", "10.10.20.0/24"]
+    cidr_blocks     = ["0.0.0.0/0"]
   }
 
   ingress {
@@ -154,7 +154,7 @@ resource "aws_security_group" "kube-external-security-group" {
   }
 }
 
-resource "aws_instance" "kube-master" {
+resource "aws_instance" "kube-controller" {
   count         = 3
   ami           = "ami-059ac57b261e8332d"
   instance_type = "t2.medium"
@@ -166,6 +166,44 @@ resource "aws_instance" "kube-master" {
   depends_on = [ "aws_key_pair.ryan-key", "aws_security_group.kube-internal-security-group" ]
 
   tags {
-    Name = "kube-master-${count.index + 1}"
+    Name = "kube-controller-${count.index + 1}"
   }
 }
+
+resource "aws_instance" "kube-worker" {
+  count         = 3
+  ami           = "ami-059ac57b261e8332d"
+  instance_type = "t2.medium"
+  subnet_id     = "${aws_subnet.kube-subnet.id}"
+  private_ip    = "10.240.0.2${count.index}"
+  key_name      = "ryan-key"
+  vpc_security_group_ids = [ "${aws_security_group.kube-external-security-group.id}" ]
+
+  depends_on = [ "aws_key_pair.ryan-key", "aws_security_group.kube-external-security-group" ]
+
+  tags {
+    Name = "kube-worker-${count.index + 1}"
+  }
+}
+
+output "kube-worker-public-ips" {
+  value = ["${aws_instance.kube-worker.*.public_ip}"]
+}
+
+output "kube-worker-private-ips" {
+  value = ["${aws_instance.kube-worker.*.private_ip}"]
+}
+
+output "kube-controller-public-ips" {
+  value = ["${aws_instance.kube-controller.*.public_ip}"]
+}
+
+output "kube-controller-private-ips" {
+  value = ["${aws_instance.kube-controller.*.private_ip}"]
+}
+
+
+
+// null resource might be a good place to start bootstrapping https://www.terraform.io/docs/provisioners/null_resource.html
+// use terraform local-exec to run gen-ca-cert.sh  https://www.terraform.io/docs/provisioners/local-exec.html
+// use terraform provisioner to copy certs to instances https://www.terraform.io/docs/provisioners/file.html
