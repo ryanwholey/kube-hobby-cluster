@@ -1,4 +1,5 @@
 #!/usr/bin/python
+
 import os
 import sys
 import subprocess
@@ -11,11 +12,16 @@ def shell(cmd, silent=False):
         print(result)
     return result
 
-os.chdir('terraform2')
-
 def fetchOutput(output):
     result = shell('terraform output -json {name}'.format(name=output), silent=True)
+
+    try:
+        json.loads(result)
+    except:
+        print 'fail'
     return json.loads(result)
+
+os.chdir('terraform2')
 
 outputs = {
     output: fetchOutput(output)['value']
@@ -297,21 +303,28 @@ cfssl gencert \
   service-account-csr.json | cfssljson -bare service-account
 """
 
-run_gen_cert_script(ca_cert)
-run_gen_cert_script(admin_cert)
+def gen_certs():
+    run_gen_cert_script(ca_cert)
+    run_gen_cert_script(admin_cert)
 
-for t in ('worker', ):
-    for i in range (0, 3):
-        name = 'kube-{}-{}'.format(t, i+1)
+    for t in ('worker', ):
+        for i in range (0, 3):
+            name = 'kube-{}-{}'.format(t, i+1)
 
-        run_gen_cert_script(
-            get_worker_script(name, instances[name]['public_ip'], instances[name]['private_ip'])
-        )
+            run_gen_cert_script(
+                get_worker_script(name, instances[name]['public_ip'], instances[name]['private_ip'])
+            )
 
-run_gen_cert_script(controller_manager)
-run_gen_cert_script(kube_proxy)
-run_gen_cert_script(kube_scheduler)
-run_gen_cert_script(kubernetes_api_server)
-run_gen_cert_script(service_account)
+    run_gen_cert_script(controller_manager)
+    run_gen_cert_script(kube_proxy)
+    run_gen_cert_script(kube_scheduler)
+    run_gen_cert_script(kubernetes_api_server)
+    run_gen_cert_script(service_account)
 
-shell('rm -rf tmp')
+def main():
+    gen_certs()
+    shell('rm -rf tmp')
+
+if __name__ == '__main__':
+    main()
+

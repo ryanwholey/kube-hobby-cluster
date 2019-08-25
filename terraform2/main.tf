@@ -20,7 +20,7 @@ resource "aws_key_pair" "ryan-key" {
 resource "aws_vpc" "kube-vpc" {
   cidr_block = "10.240.0.0/16"
   enable_dns_hostnames = true
-  
+
   tags = {
     Name = "kube-vpc"
   }
@@ -103,7 +103,7 @@ resource "aws_security_group" "kube-internal-security-group" {
     protocol        = "-1"
     cidr_blocks     = ["10.10.10.0/24", "10.10.20.0/24"]
   }
-  
+
 }
 
 resource "aws_security_group" "kube-external-security-group" {
@@ -202,6 +202,12 @@ output "kube-controller-private-ips" {
   value = ["${aws_instance.kube-controller.*.private_ip}"]
 }
 
+// resource "null_resource" "create-ca-certs" {
+//   provisioner "local-exec" {
+//     command = "cd .. && ./gencerts.py"
+//     interpreter = ["sh", "-c"]
+//   }
+// }
 
 
 // null resource might be a good place to start bootstrapping https://www.terraform.io/docs/provisioners/null_resource.html
