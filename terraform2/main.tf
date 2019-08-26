@@ -184,6 +184,7 @@ resource "aws_instance" "kube-worker" {
   tags {
     Name = "kube-worker-${count.index + 1}"
   }
+
 }
 
 output "kube-worker-public-ips" {
@@ -202,12 +203,16 @@ output "kube-controller-private-ips" {
   value = ["${aws_instance.kube-controller.*.private_ip}"]
 }
 
-// resource "null_resource" "create-ca-certs" {
-//   provisioner "local-exec" {
-//     command = "cd .. && ./gencerts.py"
-//     interpreter = ["sh", "-c"]
-//   }
-// }
+resource "null_resource" "create-ca-certs" {
+
+  triggers {
+    build_number = "${timestamp()}"
+  }
+
+  provisioner "local-exec" {
+    command = "../tf-gen-certs.py --worker_public_ips=${join(",", aws_instance.kube-worker.*.public_ip)} --controller_public_ips=${join(",", aws_instance.kube-controller.*.public_ip)} --worker_private_ips=${join(",", aws_instance.kube-worker.*.private_ip)} --controller_private_ips=${join(",", aws_instance.kube-controller.*.private_ip)}"
+  }
+}
 
 
 // null resource might be a good place to start bootstrapping https://www.terraform.io/docs/provisioners/null_resource.html
