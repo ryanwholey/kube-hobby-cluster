@@ -220,10 +220,7 @@ data "template_file" "kube-worker-names-key-template" {
   template = "${lookup(aws_instance.kube-worker.*.tags[count.index], "Name")}-key"
 }
 
-
-
-
-resource "null_resource" "create-ca-certs" {
+resource "null_resource" "ba-ca-certs" {
 
   triggers {
     build_number = "${timestamp()}"
@@ -243,6 +240,3 @@ resource "null_resource" "create-ca-certs" {
 }
 
 
-// null resource might be a good place to start bootstrapping https://www.terraform.io/docs/provisioners/null_resource.html
-// use terraform local-exec to run gen-ca-cert.sh  https://www.terraform.io/docs/provisioners/local-exec.html
-// use terraform provisioner to copy certs to instances https://www.terraform.io/docs/provisioners/file.html
