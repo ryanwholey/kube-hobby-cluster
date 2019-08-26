@@ -6,6 +6,13 @@ variable "region" {
   default = "us-west-1"
 }
 
+locals  {
+	kube-worker-names =  "${data.template_file.kube-worker-names-template.*.rendered}",
+	kube-worker-names-key =  "${data.template_file.kube-worker-names-key-template.*.rendered}",
+	worker-count = 3
+	controller-count = 3
+}
+
 provider "aws" {
   access_key = "${var.access_key}"
   secret_key = "${var.secret_key}"
@@ -155,7 +162,7 @@ resource "aws_security_group" "kube-external-security-group" {
 }
 
 resource "aws_instance" "kube-controller" {
-  count         = 3
+  count    			= "${local.controller-count}"
   ami           = "ami-059ac57b261e8332d"
   instance_type = "t2.medium"
   subnet_id     = "${aws_subnet.kube-subnet.id}"
@@ -171,7 +178,7 @@ resource "aws_instance" "kube-controller" {
 }
 
 resource "aws_instance" "kube-worker" {
-  count         = 3
+  count   			= "${local.worker-count}"
   ami           = "ami-059ac57b261e8332d"
   instance_type = "t2.medium"
   subnet_id     = "${aws_subnet.kube-subnet.id}"
@@ -203,6 +210,19 @@ output "kube-controller-private-ips" {
   value = ["${aws_instance.kube-controller.*.private_ip}"]
 }
 
+data "template_file" "kube-worker-names-template" {
+  count    = "${local.worker-count}"
+  template = "${lookup(aws_instance.kube-worker.*.tags[count.index], "Name")}"
+}
+
+data "template_file" "kube-worker-names-key-template" {
+  count    = "${local.worker-count}"
+  template = "${lookup(aws_instance.kube-worker.*.tags[count.index], "Name")}-key"
+}
+
+
+
+
 resource "null_resource" "create-ca-certs" {
 
   triggers {
@@ -212,6 +232,14 @@ resource "null_resource" "create-ca-certs" {
   provisioner "local-exec" {
     command = "../tf-gen-certs.py --worker_public_ips=${join(",", aws_instance.kube-worker.*.public_ip)} --controller_public_ips=${join(",", aws_instance.kube-controller.*.public_ip)} --worker_private_ips=${join(",", aws_instance.kube-worker.*.private_ip)} --controller_private_ips=${join(",", aws_instance.kube-controller.*.private_ip)}"
   }
+
+	provisioner "local-exec" {
+		command = "./scripts/copy-certs.sh -i ${join(",", aws_instance.kube-worker.*.public_ip)} -c ca,${join(",", local.kube-worker-names)},${join(",", local.kube-worker-names-key)}"
+	}
+
+	provisioner "local-exec" {
+		command = "./scripts/copy-certs.sh -i ${join(",", aws_instance.kube-controller.*.public_ip)} -c ca,ca-key,kubernetes-key,kubernetes,service-account-key,service-account"
+	}
 }
 
 
