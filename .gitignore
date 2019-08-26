@@ -2,7 +2,7 @@ kube-certs/
 /terraform/*
 !terraform/main.tf
 /terraform2/*
-!terraform2/main.tf
+!terraform2/*.tf
 /venv/
 /hosts
 pki.tar.gz
