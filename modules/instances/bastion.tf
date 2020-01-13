@@ -43,6 +43,10 @@ resource "aws_instance" "bastion" {
   vpc_security_group_ids      = [aws_security_group.bastion.id]
   associate_public_ip_address = true
 
+  # user_data_base64 = base64encode(templatefile("${path.module}/launch_script.sh", { 
+  #   NODE_TYPE = "bastion",
+  # }))
+
   tags = {
     Name = "${var.cluster}-bastion"
   }

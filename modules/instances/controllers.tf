@@ -50,10 +50,8 @@ resource "aws_autoscaling_group" "controller" {
   max_size                  = var.controller_count + 1
   default_cooldown          = 30
   health_check_grace_period = 30
-
-  vpc_zone_identifier = var.private_subnets
-
-  launch_configuration = aws_launch_configuration.controller.name
+  vpc_zone_identifier       = var.private_subnets
+  launch_configuration      = aws_launch_configuration.controller.name
 
   tag {
     key                 = "Name"
@@ -68,6 +66,11 @@ resource "aws_launch_configuration" "controller" {
   security_groups      = [aws_security_group.controller.id]
   iam_instance_profile = aws_iam_instance_profile.controller.name
   key_name             = var.key_name
+
+  user_data = templatefile("${path.module}/launch_script.tpl", {
+    NODE_TYPE = "controller"
+    BUCKET    = var.launch_config_bucket 
+  })
 }
 
 resource "aws_iam_role" "controller" {
@@ -78,6 +81,11 @@ resource "aws_iam_role" "controller" {
 resource "aws_iam_role_policy_attachment" "controller_read_ec2" {
   role       = aws_iam_role.controller.name
   policy_arn = aws_iam_policy.instance_read_ec2.arn
+}
+
+resource "aws_iam_role_policy_attachment" "controller_read_launch_config" {
+  role       = aws_iam_role.controller.name
+  policy_arn = aws_iam_policy.instance_read_launch_config.arn
 }
 
 resource "aws_iam_instance_profile" "controller" {

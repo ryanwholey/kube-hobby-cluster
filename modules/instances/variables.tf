@@ -59,3 +59,11 @@ variable "apiserver_port" {
 variable "hosted_zone" {
   type = string
 }
+
+variable "launch_config_bucket" {
+  type = string
+}
+
+variable "launch_config_bucket_arn" {
+  type = string
+}

@@ -58,6 +58,11 @@ resource "aws_launch_configuration" "worker" {
   security_groups      = [aws_security_group.worker.id]
   iam_instance_profile = aws_iam_instance_profile.worker.name
   key_name             = var.key_name
+
+  user_data = templatefile("${path.module}/launch_script.tpl", {
+    NODE_TYPE = "worker"
+    BUCKET    = var.launch_config_bucket
+  })
 }
 
 resource "aws_iam_role" "worker" {
@@ -68,6 +73,11 @@ resource "aws_iam_role" "worker" {
 resource "aws_iam_role_policy_attachment" "worker_read_ec2" {
   role       = aws_iam_role.worker.name
   policy_arn = aws_iam_policy.instance_read_ec2.arn
+}
+
+resource "aws_iam_role_policy_attachment" "worker_read_launch_config" {
+  role       = aws_iam_role.worker.name
+  policy_arn = aws_iam_policy.instance_read_launch_config.arn
 }
 
 resource "aws_iam_instance_profile" "worker" {
