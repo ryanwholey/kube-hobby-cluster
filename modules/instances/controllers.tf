@@ -26,6 +26,22 @@ resource "aws_security_group" "controller" {
     cidr_blocks   = [var.cidr]
   }
 
+  # etcd
+  ingress {
+    from_port     = 2379
+    to_port       = 2379
+    protocol      = "tcp"
+    cidr_blocks   = [var.cidr]
+  }
+
+  # kube-scheduler 
+  ingress {
+    from_port     = 10251
+    to_port       = 10251
+    protocol      = "tcp"
+    cidr_blocks   = [var.cidr]
+  }
+
   # kubernetes
   ingress {
     from_port     = 6443

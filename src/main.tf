@@ -1,5 +1,6 @@
 locals {
   apiserver_dns_name = "kubernetes.${terraform.workspace}.${var.hosted_zone}"
+  etcd_dns_name      = "etcd.${terraform.workspace}.${var.hosted_zone}"
 }
 
 data "aws_route53_zone" "primary" {
@@ -18,9 +19,14 @@ module "init_files" {
 
   cluster      = terraform.workspace
   organization = var.organization
+  hosted_zone  = var.hosted_zone
 
   apiserver_dns_name    = local.apiserver_dns_name
+  apiserver_port        = var.apiserver_port
+  etcd_dns_name         = local.etcd_dns_name
   kubernetes_service_ip = var.kubernetes_service_ip
+  controller_count      = var.controller_count
+  cluster_cidr          = module.network.private_cidr
 }
 
 module "instances" {
@@ -29,6 +35,7 @@ module "instances" {
   apiserver_port           = var.apiserver_port
   cidr                     = var.cidr
   cluster                  = terraform.workspace
+  controller_count         = var.controller_count
   hosted_zone              = var.hosted_zone
   public_subnets           = module.network.public_subnets
   private_subnets          = module.network.private_subnets

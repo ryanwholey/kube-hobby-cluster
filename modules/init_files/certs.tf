@@ -5,7 +5,7 @@ locals {
 module "ca" {
   source = "./modules/ca_cert"
 
-  common_name  = "kubernetes"
+  common_name  = "kubernetes-ca"
   organization = var.organization
 }
 
@@ -29,6 +29,15 @@ module "kubelet" {
 
   common_name  = "system:node:kubelet"
   organization = var.organization
+
+  dns_names =[
+    "*.${var.cluster}.${var.hosted_zone}",
+    "localhost",
+  ]
+
+  ip_addresses = [
+    "127.0.0.1"
+  ]
 
   allowed_uses = local.kubernetes_profile
 }
@@ -96,7 +105,7 @@ module "kubernetes" {
   ]
 }
 
-module "service_accounts" {
+module "service_account" {
   source = "./modules/local_cert"
 
   ca_private_key_pem = module.ca.key

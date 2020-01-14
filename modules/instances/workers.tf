@@ -3,6 +3,7 @@ resource "aws_security_group" "worker" {
   name        = "${var.cluster}-worker"
   vpc_id      = var.vpc_id
 
+  # ssh
   ingress {
     from_port     = 22
     to_port       = 22
@@ -10,6 +11,7 @@ resource "aws_security_group" "worker" {
     cidr_blocks   = [var.cidr]
   }
 
+  # http
   ingress {
     from_port     = 80
     to_port       = 80
@@ -17,9 +19,18 @@ resource "aws_security_group" "worker" {
     cidr_blocks   = [var.cidr]
   }
 
+  # https
   ingress {
     from_port     = 443
     to_port       = 443
+    protocol      = "tcp"
+    cidr_blocks   = [var.cidr]
+  }
+
+  # kubelet
+  ingress {
+    from_port     = 10250
+    to_port       = 10250
     protocol      = "tcp"
     cidr_blocks   = [var.cidr]
   }

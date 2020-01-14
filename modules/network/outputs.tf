@@ -9,3 +9,7 @@ output "private_subnets" {
 output "vpc_id" {
   value = aws_vpc.network.id
 }
+
+output "private_cidr" {
+  value = element(local.subnet_split, 1)
+}

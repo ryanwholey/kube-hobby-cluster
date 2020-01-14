@@ -16,6 +16,11 @@ variable "cidr" {
   default = "10.0.0.0/16"
 }
 
+variable "controller_count" {
+  type    = number
+  default = 3
+}
+
 variable "kubernetes_service_ip" {
   type    = string
   default = "10.32.0.1"

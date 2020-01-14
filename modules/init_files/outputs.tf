@@ -63,10 +63,10 @@ output "kubernetes_cert" {
   value = module.kubernetes.cert
 }
 
-output "service_accounts_key" {
-  value = module.service_accounts.key
+output "service_account_key" {
+  value = module.service_account.key
 }
 
-output "service_accounts_cert" {
-  value = module.service_accounts.cert
+output "service_account_cert" {
+  value = module.service_account.cert
 }
