@@ -67,3 +67,7 @@ variable "launch_config_bucket" {
 variable "launch_config_bucket_arn" {
   type = string
 }
+
+variable "apiserver_dns_name" {
+  type = string
+}

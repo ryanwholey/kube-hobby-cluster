@@ -95,7 +95,7 @@ resource "aws_iam_instance_profile" "controller" {
 
 resource "aws_route53_record" "kubernetes_api" {
   zone_id = var.zone_id
-  name    = "kubernetes.${var.cluster}.${var.hosted_zone}"
+  name    = var.apiserver_dns_name
   type    = "A"
 
   alias {
