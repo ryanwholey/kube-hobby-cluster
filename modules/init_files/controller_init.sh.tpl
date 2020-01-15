@@ -3,7 +3,7 @@
 KUBERNETES_VERSION="1.15.3"
 ETCD_VERSION="3.4.0"
 PRIVATE_IP=$(curl -fsS http://169.254.169.254/latest/meta-data/local-ipv4)
-ETCD_NAME=$(hostname -s)
+HOST_NAME=$(hostname -s)
 
 fetch-to-bin() {
   name="$1"
@@ -25,18 +25,23 @@ tar xvf /tmp/etcd.tgz -C /tmp
 sudo cp /tmp/etcd-v$ETCD_VERSION-linux-amd64/etcd* /usr/local/bin/
 
 sudo cp \
-  ca-cert.pem \
-  kubernetes-key.pem \
-  kubernetes.pem \
+  /tmp/ca-cert.pem \
+  /tmp/kubernetes-key.pem \
+  /tmp/kubernetes-cert.pem \
   /etc/etcd/
 
 cat > /etc/etcd/etcd.env <<EOF
 PRIVATE_IP=$PRIVATE_IP
-ETCD_NAME=$ETC_NAME
+ETCD_NAME=$HOST_NAME
 EOF
 
-# use bastion as boot etcd discover cluster
+sudo cp \
+  /tmp/etcd.service \
+  /etc/systemd/system/
 
+sudo systemctl daemon-reload
+sudo systemctl enable etcd
+sudo systemctl start etcd
 
 # kubernetes
 for bin in kube-apiserver kube-controller-manager kube-scheduler kubectl ; do

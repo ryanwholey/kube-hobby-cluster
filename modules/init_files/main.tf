@@ -1,3 +1,7 @@
+data "http" "etcd_discovery_url" {
+  url = "https://discovery.etcd.io/new?size=${var.etcd_cluster_size}"
+}
+
 resource "aws_s3_bucket" "launch_config" {
   bucket = "${var.cluster}-launch-config"
   acl    = "private"
@@ -94,6 +98,14 @@ resource "aws_s3_bucket_object" "controller_kube_scheduler_service" {
   bucket  = aws_s3_bucket.launch_config.id
   key     = "/controller/kube-scheduler.service"
   content = templatefile("${path.module}/templates/kube-scheduler.service.tpl", {})
+}
+
+resource "aws_s3_bucket_object" "controller_etcd_service" {
+  bucket  = aws_s3_bucket.launch_config.id
+  key     = "/controller/etcd.service"
+  content = templatefile("${path.module}/templates/etcd.service.tpl", {
+    ETCD_DISCOVERY_URL = data.http.etcd_discovery_url.body
+  })
 }
 
 

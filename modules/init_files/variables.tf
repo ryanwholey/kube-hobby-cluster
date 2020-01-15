@@ -40,3 +40,8 @@ variable "controller_count" {
   type    = number
   default = 3
 }
+
+variable "etcd_cluster_size" {
+  type    = number
+  default = 3
+}

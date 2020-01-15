@@ -29,7 +29,7 @@ resource "aws_security_group" "controller" {
   # etcd
   ingress {
     from_port     = 2379
-    to_port       = 2379
+    to_port       = 2380
     protocol      = "tcp"
     cidr_blocks   = [var.cidr]
   }
