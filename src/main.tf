@@ -1,12 +1,3 @@
-locals {
-  apiserver_dns_name = "kubernetes.${terraform.workspace}.${var.hosted_zone}"
-  etcd_dns_name      = "etcd.${terraform.workspace}.${var.hosted_zone}"
-}
-
-data "aws_route53_zone" "primary" {
-  name = var.hosted_zone
-}
-
 module "network" {
   source = "../modules/network"
 
@@ -14,34 +5,31 @@ module "network" {
   cluster = terraform.workspace
 }
 
-module "init_files" {
-  source = "../modules/init_files"
-
-  cluster      = terraform.workspace
-  organization = var.organization
-  hosted_zone  = var.hosted_zone
-
-  apiserver_dns_name    = local.apiserver_dns_name
-  apiserver_port        = var.apiserver_port
-  etcd_dns_name         = local.etcd_dns_name
-  kubernetes_service_ip = var.kubernetes_service_ip
-  controller_count      = var.controller_count
-  cluster_cidr          = module.network.private_cidr
-}
-
 module "instances" {
   source = "../modules/instances"
 
-  apiserver_port           = var.apiserver_port
-  cidr                     = var.cidr
-  cluster                  = terraform.workspace
-  controller_count         = var.controller_count
-  hosted_zone              = var.hosted_zone
-  public_subnets           = module.network.public_subnets
-  private_subnets          = module.network.private_subnets
-  vpc_id                   = module.network.vpc_id
-  zone_id                  = data.aws_route53_zone.primary.zone_id
-  launch_config_bucket     = module.init_files.launch_config_bucket
-  launch_config_bucket_arn = module.init_files.launch_config_bucket_arn
-  apiserver_dns_name       = local.apiserver_dns_name
+  cluster     = terraform.workspace
+  hosted_zone = var.hosted_zone
+
+  private_subnets = module.network.private_subnets
+  public_subnets  = module.network.public_subnets
+  vpc_id          = module.network.vpc_id
+}
+
+module "cluster" {
+  source = "../modules/cluster"
+
+  cluster     = terraform.workspace
+  hosted_zone = var.hosted_zone
+
+  vpc_id          = module.network.vpc_id
+  private_subnets = module.network.private_subnets
+  controller_ips  = module.instances.controller_ips
+  worker_ips      = module.instances.worker_ips
+  bastion_url     = module.instances.bastion_url
+
+  controller_count = var.controller_count
+  organization     = var.organization
+  service_cidr     = var.service_cidr
+  cluster_cidr     = var.cluster_cidr
 }

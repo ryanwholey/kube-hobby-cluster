@@ -1,6 +1,6 @@
 resource "aws_security_group" "bastion" {
-  name        = "${var.cluster}-bastion"
-  vpc_id      = var.vpc_id
+  name   = "${var.cluster}-bastion"
+  vpc_id = var.vpc_id
 
   # ssh
   ingress {
@@ -19,25 +19,23 @@ resource "aws_security_group" "bastion" {
 }
 
 resource "aws_instance" "bastion" {
-  ami             = data.aws_ami.ubuntu.id
-  instance_type   = var.bastion_instance_type
-  key_name        = var.key_name
-  subnet_id       = element(var.public_subnets, 0) 
+  ami           = data.aws_ami.ubuntu.image_id
+  instance_type = var.bastion_instance_type
+  subnet_id     = element(var.public_subnets, 0)
 
-  vpc_security_group_ids      = [aws_security_group.bastion.id]
-  associate_public_ip_address = true
+  vpc_security_group_ids = [aws_security_group.bastion.id]
 
-  # user_data_base64 = base64encode(templatefile("${path.module}/launch_script.sh", { 
-  #   NODE_TYPE = "bastion",
-  # }))
+  key_name = aws_key_pair.instance_ssh_key.key_name
 
   tags = {
     Name = "${var.cluster}-bastion"
+
+    "kubernetes.io/cluster/${var.cluster}" = "owned"
   }
 }
 
 resource "aws_route53_record" "bastion" {
-  zone_id = var.zone_id
+  zone_id = data.aws_route53_zone.primary.zone_id
   name    = "bastion.${var.cluster}.${var.hosted_zone}"
   type    = "A"
   ttl     = "300"

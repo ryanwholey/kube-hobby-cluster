@@ -25,3 +25,15 @@ variable "kubernetes_service_ip" {
   type    = string
   default = "10.32.0.1"
 }
+
+variable "service_cidr" {
+  type    = string
+  default = "10.32.0.0/24"
+}
+
+variable "cluster_cidr" {
+  type = string
+  default = "10.200.0.0/16"
+}
+
+

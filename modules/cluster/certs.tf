@@ -1,15 +1,20 @@
 locals {
-  kubernetes_profile = ["signing", "key encipherment", "server auth", "client auth"]
+  kubernetes_profile = [
+    "signing",
+    "key encipherment",
+    "server auth",
+    "client auth",
+  ]
 }
 
 module "ca" {
   source = "./modules/ca_cert"
 
-  common_name  = "kubernetes-ca"
+  common_name  = "kubernetes_ca"
   organization = var.organization
 }
 
-module "admin" {
+module "admin_cert" {
   source = "./modules/local_cert"
 
   ca_private_key_pem = module.ca.key
@@ -21,28 +26,28 @@ module "admin" {
   allowed_uses = local.kubernetes_profile
 }
 
-module "kubelet" {
+module "kubelet_cert" {
   source = "./modules/local_cert"
 
   ca_private_key_pem = module.ca.key
   ca_cert_pem        = module.ca.cert
 
-  common_name  = "system:node:kubelet"
+  common_name  = "system:node"
   organization = var.organization
 
-  dns_names =[
-    "*.${var.cluster}.${var.hosted_zone}",
+  dns_names = [
     "localhost",
   ]
 
-  ip_addresses = [
-    "127.0.0.1"
-  ]
-
+  ip_addresses = concat(
+    ["127.0.0.1"],
+    var.worker_ips,
+    var.controller_ips,
+  )
   allowed_uses = local.kubernetes_profile
 }
 
-module "kube_controller_manager" {
+module "kube_controller_manager_cert" {
   source = "./modules/local_cert"
 
   ca_private_key_pem = module.ca.key
@@ -54,7 +59,7 @@ module "kube_controller_manager" {
   allowed_uses = local.kubernetes_profile
 }
 
-module "kube_proxy" {
+module "kube_proxy_cert" {
   source = "./modules/local_cert"
 
   ca_private_key_pem = module.ca.key
@@ -66,7 +71,7 @@ module "kube_proxy" {
   allowed_uses = local.kubernetes_profile
 }
 
-module "kube_scheduler" {
+module "kube_scheduler_cert" {
   source = "./modules/local_cert"
 
   ca_private_key_pem = module.ca.key
@@ -78,7 +83,7 @@ module "kube_scheduler" {
   allowed_uses = local.kubernetes_profile
 }
 
-module "kubernetes" {
+module "kubernetes_cert" {
   source = "./modules/local_cert"
 
   ca_private_key_pem = module.ca.key
@@ -89,8 +94,8 @@ module "kubernetes" {
 
   allowed_uses = local.kubernetes_profile
 
-  dns_names =[
-    var.apiserver_dns_name,
+  dns_names = [
+    aws_route53_record.kubernetes_api.name,
     "localhost",
     "kubernetes",
     "kubernetes.default",
@@ -99,13 +104,16 @@ module "kubernetes" {
     "kubernetes.svc.cluster.local",
   ]
 
-  ip_addresses = [
-    "127.0.0.1",
-    var.kubernetes_service_ip,
-  ]
+  ip_addresses = concat(
+    [
+      "127.0.0.1",
+      local.kubernetes_service_ip,
+    ],
+    var.controller_ips
+  )
 }
 
-module "service_account" {
+module "service_account_cert" {
   source = "./modules/local_cert"
 
   ca_private_key_pem = module.ca.key

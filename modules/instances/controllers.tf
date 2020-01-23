@@ -1,13 +1,13 @@
 resource "aws_security_group" "controller" {
-  name        = "${var.cluster}-controller"
-  vpc_id      = var.vpc_id
+  name   = "${var.cluster}-controller"
+  vpc_id = var.vpc_id
 
   # ssh
   ingress {
     from_port     = 22
     to_port       = 22
     protocol      = "tcp"
-    cidr_blocks   = [var.cidr]
+    cidr_blocks   = [data.aws_vpc.network.cidr_block]
   }
 
   # http
@@ -15,7 +15,7 @@ resource "aws_security_group" "controller" {
     from_port     = 80
     to_port       = 80
     protocol      = "tcp"
-    cidr_blocks   = [var.cidr]
+    cidr_blocks   = [data.aws_vpc.network.cidr_block]
   }
 
   # https
@@ -23,7 +23,7 @@ resource "aws_security_group" "controller" {
     from_port     = 443
     to_port       = 443
     protocol      = "tcp"
-    cidr_blocks   = [var.cidr]
+    cidr_blocks   = [data.aws_vpc.network.cidr_block]
   }
 
   # etcd
@@ -31,15 +31,15 @@ resource "aws_security_group" "controller" {
     from_port     = 2379
     to_port       = 2380
     protocol      = "tcp"
-    cidr_blocks   = [var.cidr]
+    cidr_blocks   = [data.aws_vpc.network.cidr_block]
   }
 
-  # kube-scheduler 
+  # kube-controller-services
   ingress {
-    from_port     = 10251
-    to_port       = 10251
+    from_port     = 10250
+    to_port       = 10260
     protocol      = "tcp"
-    cidr_blocks   = [var.cidr]
+    cidr_blocks   = [data.aws_vpc.network.cidr_block]
   }
 
   # kubernetes
@@ -47,7 +47,7 @@ resource "aws_security_group" "controller" {
     from_port     = 6443
     to_port       = 6443
     protocol      = "tcp"
-    cidr_blocks   = [var.cidr]
+    cidr_blocks   = [data.aws_vpc.network.cidr_block]
   }
 
   egress {
@@ -58,98 +58,60 @@ resource "aws_security_group" "controller" {
   }
 }
 
-resource "aws_autoscaling_group" "controller" {
-  name = "${var.cluster}-controller-${aws_launch_configuration.controller.name}"
+resource "aws_instance" "controller" {
+  count         = var.controller_count
+  ami           = data.aws_ami.ubuntu.image_id
+  instance_type = var.controller_instance_type
+  subnet_id     = element(var.private_subnets, count.index % length(var.private_subnets))
 
-  desired_capacity          = var.controller_count
-  min_size                  = var.controller_count
-  max_size                  = var.controller_count + 1
-  default_cooldown          = 30
-  health_check_grace_period = 30
-  vpc_zone_identifier       = var.private_subnets
-  launch_configuration      = aws_launch_configuration.controller.name
+  vpc_security_group_ids = [aws_security_group.controller.id]
+  iam_instance_profile   = aws_iam_instance_profile.controller_instance.id
 
-  tag {
-    key                 = "Name"
-    value               = "${var.cluster}-controller"
-    propagate_at_launch = true
+  key_name = aws_key_pair.instance_ssh_key.key_name
+
+  tags = {
+    Name = "${var.cluster}-controller-${count.index}"
+
+    "kubernetes.io/cluster/${var.cluster}" = "owned"
   }
 }
 
-resource "aws_launch_configuration" "controller" {
-  image_id             = data.aws_ami.ubuntu.image_id
-  instance_type        = var.controller_instance_type
-  security_groups      = [aws_security_group.controller.id]
-  iam_instance_profile = aws_iam_instance_profile.controller.name
-  key_name             = var.key_name
-
-  user_data = templatefile("${path.module}/launch_script.tpl", {
-    NODE_TYPE = "controller"
-    BUCKET    = var.launch_config_bucket 
-  })
-}
-
-resource "aws_iam_role" "controller" {
-  name               = "${var.cluster}-controller"
-  assume_role_policy = data.aws_iam_policy_document.assume_role.json
-}
-
-resource "aws_iam_role_policy_attachment" "controller_read_ec2" {
-  role       = aws_iam_role.controller.name
-  policy_arn = aws_iam_policy.instance_read_ec2.arn
-}
-
-resource "aws_iam_role_policy_attachment" "controller_read_launch_config" {
-  role       = aws_iam_role.controller.name
-  policy_arn = aws_iam_policy.instance_read_launch_config.arn
-}
-
-resource "aws_iam_instance_profile" "controller" {
+resource "aws_iam_instance_profile" "controller_instance" {
   name = "${var.cluster}-controller"
-  role = aws_iam_role.controller.id
+  role = aws_iam_role.controller_instance.name
 }
 
-resource "aws_route53_record" "kubernetes_api" {
-  zone_id = var.zone_id
-  name    = var.apiserver_dns_name
-  type    = "A"
+data "aws_iam_policy_document" "controller_instance_profile" {
+  statement {
+    actions = [
+      "ec2:*",
+      "elasticloadbalancing:*",
+    ]
 
-  alias {
-    name                   = aws_lb.kubernetes_api.dns_name
-    zone_id                = aws_lb.kubernetes_api.zone_id
-    evaluate_target_health = true
+    resources = ["*"]
   }
 }
 
-resource "aws_lb" "kubernetes_api" {
-  name               = "${var.cluster}-kubernetes"
-  internal           = true
-  load_balancer_type = "network"
-  subnets            = var.private_subnets
+data "aws_iam_policy_document" "instance_assume_role" {
+  statement {
+    actions = ["sts:AssumeRole"]
 
-  enable_cross_zone_load_balancing = true
-}
-
-resource "aws_lb_listener" "forwarder" {
-  load_balancer_arn = aws_lb.kubernetes_api.arn
-  port              = var.apiserver_port
-  protocol          = "TCP"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.controller.arn
+    principals {
+      type        = "Service"
+      identifiers = ["ec2.amazonaws.com"]
+    }
   }
 }
 
-resource "aws_lb_target_group" "controller" {
-  name        = "${var.cluster}-controllers-group"
-  port        = var.apiserver_port
-  protocol    = "TCP"
-  target_type = "instance"
-  vpc_id      = var.vpc_id
+resource "aws_iam_role" "controller_instance" {
+  name = "${var.cluster}-controller-instance"
+  path = "/"
+
+  assume_role_policy = data.aws_iam_policy_document.instance_assume_role.json
 }
 
-resource "aws_autoscaling_attachment" "workers" {
-  autoscaling_group_name = aws_autoscaling_group.controller.id
-  alb_target_group_arn   = aws_lb_target_group.controller.arn
+resource "aws_iam_role_policy" "instance_read_ec2" {
+  name   = "${var.cluster}-controller-intance"
+  role   = aws_iam_role.controller_instance.id
+  policy = data.aws_iam_policy_document.controller_instance_profile.json
 }

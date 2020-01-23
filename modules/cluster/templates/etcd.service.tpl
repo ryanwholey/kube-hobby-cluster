@@ -6,21 +6,22 @@ Documentation=https://github.com/coreos
 Type=notify
 EnvironmentFile=/etc/etcd/etcd.env
 ExecStart=/usr/local/bin/etcd \
-  --advertise-client-urls https://$${PRIVATE_IP}:2379 \
   --cert-file=/etc/etcd/kubernetes-cert.pem \
-  --client-cert-auth \
-  --data-dir=/var/lib/etcd \
-  --discovery ${ETCD_DISCOVERY_URL} \
-  --initial-advertise-peer-urls https://$${PRIVATE_IP}:2380 \
   --key-file=/etc/etcd/kubernetes-key.pem \
-  --listen-peer-urls https://$${PRIVATE_IP}:2380 \
-  --listen-client-urls https://$${PRIVATE_IP}:2379,https://127.0.0.1:2379 \
-  --logger=zap \
   --peer-cert-file=/etc/etcd/kubernetes-cert.pem \
   --peer-key-file=/etc/etcd/kubernetes-key.pem \
+  --trusted-ca-file=/etc/etcd/ca-cert.pem \
   --peer-trusted-ca-file=/etc/etcd/ca-cert.pem \
   --peer-client-cert-auth \
-  --trusted-ca-file=/etc/etcd/ca-cert.pem
+  --client-cert-auth \
+  --initial-advertise-peer-urls https://$${PRIVATE_IP}:2380 \
+  --listen-peer-urls https://$${PRIVATE_IP}:2380 \
+  --listen-client-urls https://$${PRIVATE_IP}:2379,https://127.0.0.1:2379 \
+  --advertise-client-urls https://$${PRIVATE_IP}:2379 \
+  --initial-cluster-token etcd-cluster-0 \
+  --initial-cluster ${CONTROLLER_IP_CONFIG} \
+  --initial-cluster-state new \
+  --data-dir=/var/lib/etcd
 Restart=on-failure
 RestartSec=5
 

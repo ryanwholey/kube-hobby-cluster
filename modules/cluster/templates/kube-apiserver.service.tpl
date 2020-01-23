@@ -1,6 +1,7 @@
 [Unit]
 Description=Kubernetes API Server
 Documentation=https://github.com/kubernetes/kubernetes
+After=etcd.service
 
 [Service]
 EnvironmentFile=/var/lib/kubernetes/kube-apiserver.env
@@ -15,12 +16,12 @@ ExecStart=/usr/local/bin/kube-apiserver \
   --authorization-mode=Node,RBAC \
   --bind-address=0.0.0.0 \
   --client-ca-file=/var/lib/kubernetes/ca-cert.pem \
-  --cloud-provider="aws" \
+  --cloud-provider=aws \
   --enable-admission-plugins=NamespaceLifecycle,NodeRestriction,LimitRanger,ServiceAccount,DefaultStorageClass,ResourceQuota \
   --etcd-cafile=/var/lib/kubernetes/ca-cert.pem \
   --etcd-certfile=/var/lib/kubernetes/kubernetes-cert.pem \
   --etcd-keyfile=/var/lib/kubernetes/kubernetes-key.pem \
-  --etcd-servers=${ETCD_DNS_NAME}:2379 \
+  --etcd-servers=${ETCD_SERVERS} \
   --event-ttl=1h \
   --encryption-provider-config=/var/lib/kubernetes/encryption-config.yaml \
   --kubelet-certificate-authority=/var/lib/kubernetes/ca-cert.pem \

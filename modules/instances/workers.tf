@@ -1,14 +1,13 @@
-
 resource "aws_security_group" "worker" {
-  name        = "${var.cluster}-worker"
-  vpc_id      = var.vpc_id
+  name   = "${var.cluster}-worker"
+  vpc_id = var.vpc_id
 
   # ssh
   ingress {
     from_port     = 22
     to_port       = 22
     protocol      = "tcp"
-    cidr_blocks   = [var.cidr]
+    cidr_blocks   = [data.aws_vpc.network.cidr_block]
   }
 
   # http
@@ -16,7 +15,7 @@ resource "aws_security_group" "worker" {
     from_port     = 80
     to_port       = 80
     protocol      = "tcp"
-    cidr_blocks   = [var.cidr]
+    cidr_blocks   = [data.aws_vpc.network.cidr_block]
   }
 
   # https
@@ -24,15 +23,15 @@ resource "aws_security_group" "worker" {
     from_port     = 443
     to_port       = 443
     protocol      = "tcp"
-    cidr_blocks   = [var.cidr]
+    cidr_blocks   = [data.aws_vpc.network.cidr_block]
   }
 
-  # kubelet
+  # kubelet 
   ingress {
     from_port     = 10250
     to_port       = 10250
     protocol      = "tcp"
-    cidr_blocks   = [var.cidr]
+    cidr_blocks   = [data.aws_vpc.network.cidr_block]
   }
 
   egress {
@@ -43,55 +42,19 @@ resource "aws_security_group" "worker" {
   }
 }
 
-resource "aws_autoscaling_group" "workers" {
-  name = "${var.cluster}-worker-${aws_launch_configuration.worker.name}"
+resource "aws_instance" "worker" {
+  count         = var.worker_count
+  ami           = data.aws_ami.ubuntu.image_id
+  instance_type = var.worker_instance_type
+  subnet_id     = element(var.private_subnets, count.index % length(var.private_subnets))
 
-  desired_capacity          = var.worker_count
-  min_size                  = var.worker_count
-  max_size                  = var.worker_count + 1
-  default_cooldown          = 30
-  health_check_grace_period = 30
+  vpc_security_group_ids = [aws_security_group.worker.id]
 
-  vpc_zone_identifier = var.private_subnets
+  key_name = aws_key_pair.instance_ssh_key.key_name
 
-  launch_configuration = aws_launch_configuration.worker.name
+  tags = {
+    Name = "${var.cluster}-worker-${count.index}"
 
-  tag {
-    key                 = "Name"
-    value               = "${var.cluster}-worker"
-    propagate_at_launch = true
+    "kubernetes.io/cluster/${var.cluster}" = "owned"
   }
-}
-
-resource "aws_launch_configuration" "worker" {
-  image_id             = data.aws_ami.ubuntu.image_id
-  instance_type        = var.worker_instance_type
-  security_groups      = [aws_security_group.worker.id]
-  iam_instance_profile = aws_iam_instance_profile.worker.name
-  key_name             = var.key_name
-
-  user_data = templatefile("${path.module}/launch_script.tpl", {
-    NODE_TYPE = "worker"
-    BUCKET    = var.launch_config_bucket
-  })
-}
-
-resource "aws_iam_role" "worker" {
-  name               = "${var.cluster}-worker"
-  assume_role_policy = data.aws_iam_policy_document.assume_role.json
-}
-
-resource "aws_iam_role_policy_attachment" "worker_read_ec2" {
-  role       = aws_iam_role.worker.name
-  policy_arn = aws_iam_policy.instance_read_ec2.arn
-}
-
-resource "aws_iam_role_policy_attachment" "worker_read_launch_config" {
-  role       = aws_iam_role.worker.name
-  policy_arn = aws_iam_policy.instance_read_launch_config.arn
-}
-
-resource "aws_iam_instance_profile" "worker" {
-  name = "${var.cluster}-worker"
-  role = aws_iam_role.worker.id
 }
