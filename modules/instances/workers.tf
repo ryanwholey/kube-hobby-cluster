@@ -49,12 +49,40 @@ resource "aws_instance" "worker" {
   subnet_id     = element(var.private_subnets, count.index % length(var.private_subnets))
 
   vpc_security_group_ids = [aws_security_group.worker.id]
+  iam_instance_profile   = aws_iam_instance_profile.worker_instance.id
 
   key_name = aws_key_pair.instance_ssh_key.key_name
 
   tags = {
     Name = "${var.cluster}-worker-${count.index}"
-
     "kubernetes.io/cluster/${var.cluster}" = "owned"
   }
+}
+
+resource "aws_iam_instance_profile" "worker_instance" {
+  name = "${var.cluster}-worker"
+  role = aws_iam_role.worker_instance.name
+}
+
+data "aws_iam_policy_document" "worker_instance_profile" {
+  statement {
+    actions = [
+      "ec2:*",
+    ]
+
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role" "worker_instance" {
+  name = "${var.cluster}-worker-instance"
+  path = "/"
+
+  assume_role_policy = data.aws_iam_policy_document.instance_assume_role.json
+}
+
+resource "aws_iam_role_policy" "worker_instance_policy" {
+  name   = "${var.cluster}-worker-intance"
+  role   = aws_iam_role.worker_instance.id
+  policy = data.aws_iam_policy_document.worker_instance_profile.json
 }

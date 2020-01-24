@@ -71,7 +71,6 @@ resource "aws_instance" "controller" {
 
   tags = {
     Name = "${var.cluster}-controller-${count.index}"
-
     "kubernetes.io/cluster/${var.cluster}" = "owned"
   }
 }
@@ -92,17 +91,6 @@ data "aws_iam_policy_document" "controller_instance_profile" {
   }
 }
 
-data "aws_iam_policy_document" "instance_assume_role" {
-  statement {
-    actions = ["sts:AssumeRole"]
-
-    principals {
-      type        = "Service"
-      identifiers = ["ec2.amazonaws.com"]
-    }
-  }
-}
-
 resource "aws_iam_role" "controller_instance" {
   name = "${var.cluster}-controller-instance"
   path = "/"
@@ -110,7 +98,7 @@ resource "aws_iam_role" "controller_instance" {
   assume_role_policy = data.aws_iam_policy_document.instance_assume_role.json
 }
 
-resource "aws_iam_role_policy" "instance_read_ec2" {
+resource "aws_iam_role_policy" "controller_instance_policy" {
   name   = "${var.cluster}-controller-intance"
   role   = aws_iam_role.controller_instance.id
   policy = data.aws_iam_policy_document.controller_instance_profile.json

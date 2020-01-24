@@ -27,4 +27,13 @@ resource "aws_key_pair" "instance_ssh_key" {
   public_key = file("~/.ssh/id_rsa.pub")
 }
 
+data "aws_iam_policy_document" "instance_assume_role" {
+  statement {
+    actions = ["sts:AssumeRole"]
 
+    principals {
+      type        = "Service"
+      identifiers = ["ec2.amazonaws.com"]
+    }
+  }
+}
