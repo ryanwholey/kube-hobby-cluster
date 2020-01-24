@@ -2,6 +2,8 @@ variable "hosted_zone" {
   type = string
 }
 
+
+
 variable "organization" {
   type = string
 }
@@ -36,4 +38,8 @@ variable "cluster_cidr" {
   default = "10.200.0.0/16"
 }
 
+variable "region" {
+  type    = string
+  default = "us-west-2"
+}
 

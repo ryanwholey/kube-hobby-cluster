@@ -13,7 +13,7 @@ module "remote_copy" {
   name = var.name
   dest = var.dest
 
-  ssh_user = var.ssh_user
+  ssh_user  = var.ssh_user
   ssh_hosts = var.ssh_hosts
 
   bastion_host = var.bastion_host

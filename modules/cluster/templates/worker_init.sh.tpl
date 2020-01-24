@@ -2,10 +2,12 @@
 
 set -ex -o pipefail
 
-sudo hostnamectl set-hostname $(curl http://169.254.169.254/latest/meta-data/local-hostname)
+HOSTNAME=$(curl http://169.254.169.254/latest/meta-data/local-hostname)
+INSTANCE_INDEX=$(cat /tmp/instance_index)
+sudo hostnamectl set-hostname $HOSTNAME
 
-sed -i "s/<%instance_index%>/$(cat /tmp/instance_index)/g" /tmp/kubelet-config.yaml
-sed -i "s/<%instance_index%>/$(cat /tmp/instance_index)/g" /tmp/10-bridge.conf
+sed -i "s/<%instance_index%>/$INSTANCE_INDEX/g" /tmp/kubelet-config.yaml
+sed -i "s/<%instance_index%>/$INSTANCE_INDEX/g" /tmp/10-bridge.conf
 
 sudo apt-get update
 sudo apt-get -y install \
@@ -67,14 +69,13 @@ sudo cp \
   /tmp/kube-proxy.service \
   /etc/systemd/system/
 
-sudo cp \
-  /tmp/kubelet-key.pem \
-  /tmp/kubelet-cert.pem \
-  /tmp/kubelet-config.yaml \
-  /tmp/kubelet.kubeconfig \
-  /var/lib/kubelet/
+sudo cp /tmp/kubelet-key-$INSTANCE_INDEX.pem  /var/lib/kubelet/kubelet-key.pem
+sudo cp /tmp/kubelet-cert-$INSTANCE_INDEX.pem  /var/lib/kubelet/kubelet-cert.pem
+sudo cp /tmp/kubelet-$INSTANCE_INDEX.kubeconfig /var/lib/kubelet/kubeconfig
 
-sudo mv /var/lib/kubelet/kubelet.kubeconfig /var/lib/kubelet/kubeconfig
+sudo cp \
+  /tmp/kubelet-config.yaml \
+  /var/lib/kubelet/
 
 sudo cp /tmp/ca-cert.pem /var/lib/kubernetes/
 

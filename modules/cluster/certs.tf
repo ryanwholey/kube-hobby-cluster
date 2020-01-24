@@ -27,23 +27,26 @@ module "admin_cert" {
 }
 
 module "kubelet_cert" {
-  source = "./modules/local_cert"
+  source = "./modules/multi_local_certs"
+
+  cert_count = length(var.worker_ips)
 
   ca_private_key_pem = module.ca.key
   ca_cert_pem        = module.ca.cert
 
-  common_name  = "system:node"
+  common_names = local.worker_node_names
   organization = var.organization
 
-  dns_names = [
-    "localhost",
-  ]
+  dns_names = concat(
+    ["localhost"],
+    local.worker_node_names,
+  )
 
   ip_addresses = concat(
     ["127.0.0.1"],
     var.worker_ips,
-    var.controller_ips,
   )
+
   allowed_uses = local.kubernetes_profile
 }
 

@@ -1,6 +1,8 @@
 locals {
   kubernetes_service_ip = cidrhost(var.service_cidr, 1)
   kubernetes_version = "1.15.3"
+  worker_node_names = [for ip in var.worker_ips: "system:node:ip-${replace(ip, ",", "-")}.${var.region}.compute.internal"]
+  controller_node_names = [for ip in var.controller_ips: "system:node:ip-${replace(ip, ",", "-")}.${var.region}.compute.internal"]
 }
 
 data "aws_route53_zone" "primary" {
@@ -100,54 +102,64 @@ module "controller_init_files" {
 module "worker_init_files" {
   source = "./modules/remote_archive"
 
-  content = {
-    "ca-cert.pem"      = module.ca.cert
-    "kubelet-cert.pem" = module.kubelet_cert.cert
-    "kubelet-key.pem"  = module.kubelet_cert.key
+  content = merge(
+    zipmap(
+      [for i in range(length(var.worker_ips)) : "kubelet-cert-${i}.pem"],
+      [for i in range(length(var.worker_ips)) : module.kubelet_cert.cert[i]]
+    ), 
+    zipmap(
+      [for i in range(length(var.worker_ips)) : "kubelet-key-${i}.pem"],
+      [for i in range(length(var.worker_ips)) : module.kubelet_cert.key[i]]
+    ),
+    zipmap(
+      [for i in range(length(var.worker_ips)) : "kubelet-${i}.kubeconfig"],
+      [for i in range(length(var.worker_ips)) : templatefile("${path.module}/templates/kubeconfig.tpl", {
+        CA_CERT             = base64encode(module.ca.cert)
+        CLIENT_CERT         = base64encode(module.kubelet_cert.cert[i])
+        CLIENT_KEY          = base64encode(module.kubelet_cert.key[i])
+        KUBERNETES_API_HOST = aws_route53_record.kubernetes_api.name
+        KUBERNETES_API_PORT = var.apiserver_port
+        CLUSTER             = var.cluster
+        USER_NAME           = local.worker_node_names[i]
+      })]
+    ),
+    {
+      "ca-cert.pem"      = module.ca.cert
 
-    "kubelet.kubeconfig" = templatefile("${path.module}/templates/kubeconfig.tpl", {
-      CA_CERT             = base64encode(module.ca.cert)
-      CLIENT_CERT         = base64encode(module.kubelet_cert.cert)
-      CLIENT_KEY          = base64encode(module.kubelet_cert.key)
-      KUBERNETES_API_HOST = aws_route53_record.kubernetes_api.name
-      KUBERNETES_API_PORT = var.apiserver_port
-      CLUSTER             = var.cluster
-      USER_NAME           = "system:node"
-    })
+      "kube-proxy.kubeconfig" = templatefile("${path.module}/templates/kubeconfig.tpl", {
+        CA_CERT             = base64encode(module.ca.cert)
+        CLIENT_CERT         = base64encode(module.kube_proxy_cert.cert)
+        CLIENT_KEY          = base64encode(module.kube_proxy_cert.key)
+        KUBERNETES_API_HOST = aws_route53_record.kubernetes_api.name
+        KUBERNETES_API_PORT = var.apiserver_port
+        CLUSTER             = var.cluster
+        USER_NAME           = "system:kube-proxy"
+      })
 
-    "kube-proxy.kubeconfig" = templatefile("${path.module}/templates/kubeconfig.tpl", {
-      CA_CERT             = base64encode(module.ca.cert)
-      CLIENT_CERT         = base64encode(module.kube_proxy_cert.cert)
-      CLIENT_KEY          = base64encode(module.kube_proxy_cert.key)
-      KUBERNETES_API_HOST = aws_route53_record.kubernetes_api.name
-      KUBERNETES_API_PORT = var.apiserver_port
-      CLUSTER             = var.cluster
-      USER_NAME           = "system:kube-proxy"
-    })
+      "10-bridge.conf" = templatefile("${path.module}/templates/10-bridge.conf.tpl", {
+        POD_CIDR = replace(cidrsubnet(var.cluster_cidr, 8, 255), "255", "<%instance_index%>")
+      })
+      "99-loopback.conf" = templatefile("${path.module}/templates/99-loopback.conf.tpl", {})
 
-    "10-bridge.conf" = templatefile("${path.module}/templates/10-bridge.conf.tpl", {
-      POD_CIDR = replace(cidrsubnet(var.cluster_cidr, 8, 255), "255", "<%instance_index%>")
-    })
-    "99-loopback.conf" = templatefile("${path.module}/templates/99-loopback.conf.tpl", {})
+      "containerd-config.toml" = templatefile("${path.module}/templates/containerd-config.toml.tpl", {})
+      "containerd.service" = templatefile("${path.module}/templates/containerd.service.tpl", {})
 
-    "containerd-config.toml" = templatefile("${path.module}/templates/containerd-config.toml.tpl", {})
-    "containerd.service" = templatefile("${path.module}/templates/containerd.service.tpl", {})
+      "kubelet-config.yaml" = templatefile("${path.module}/templates/kubelet-config.yaml.tpl", {
+        CLUSTER_DNS_IP = cidrhost(var.service_cidr, 10)
+        POD_CIDR       = replace(cidrsubnet(var.cluster_cidr, 8, 255), "255", "<%instance_index%>")
+      })
+      "kubelet.service" = templatefile("${path.module}/templates/kubelet.service.tpl", {})
 
-    "kubelet-config.yaml" = templatefile("${path.module}/templates/kubelet-config.yaml.tpl", {
-      CLUSTER_DNS_IP = cidrhost(var.service_cidr, 10)
-      POD_CIDR       = replace(cidrsubnet(var.cluster_cidr, 8, 255), "255", "<%instance_index%>")
-    })
-    "kubelet.service" = templatefile("${path.module}/templates/kubelet.service.tpl", {})
+      "kube-proxy.service" = templatefile("${path.module}/templates/kube-proxy.service.tpl", {})
+      "kube-proxy-config.yaml" = templatefile("${path.module}/templates/kube-proxy-config.yaml.tpl", {
+        CLUSTER_CIDR = var.cluster_cidr
+      })
 
-    "kube-proxy.service" = templatefile("${path.module}/templates/kube-proxy.service.tpl", {})
-    "kube-proxy-config.yaml" = templatefile("${path.module}/templates/kube-proxy-config.yaml.tpl", {
-      CLUSTER_CIDR = var.cluster_cidr
-    })
-
-    "init.sh" = templatefile("${path.module}/templates/worker_init.sh.tpl", {
-      KUBERNETES_VERSION = local.kubernetes_version
-    })
-  }
+      "init.sh" = templatefile("${path.module}/templates/worker_init.sh.tpl", {
+        KUBERNETES_VERSION = local.kubernetes_version
+      })
+    }
+  )
 
   on_copy = [
     "sudo apt-get install -y unzip",
